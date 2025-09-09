@@ -1,0 +1,466 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>CHS Itinerary Builder — Prototype v3</title>
+<style>
+  :root{
+    --chs-green: #2e6e55;
+    --chs-cream: #f4efe7;
+    --chs-gold: #a87d35;
+    --chs-sage: #7e9c87;
+    --chs-sky: #c9ded6;
+    --ink: #223;
+    --bg: #fff;
+    --muted: #6b7280;
+    --danger: #b91c1c;
+    --ok: #166534;
+    --chip: #e5efe9;
+    --shadow: 0 8px 20px rgba(0,0,0,.08);
+  }
+  [data-theme="dark"]{
+    --bg:#0f1411;
+    --ink:#f3f5f4;
+    --muted:#a3a9a6;
+    --chip:#1a221f;
+    --chs-cream:#101412;
+    --shadow: 0 10px 30px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  body{ margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "SF Pro", Inter, Segoe UI, Roboto, Helvetica, Arial;
+        color:var(--ink); background:var(--bg);}
+  header{ position:sticky; top:0; z-index:10; background:linear-gradient(180deg, var(--chs-cream), rgba(0,0,0,0));
+           padding:14px 16px; box-shadow: var(--shadow); display:flex; gap:12px; align-items:center; justify-content:space-between; }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .logo{ width:32px; height:32px; border-radius:6px; background:linear-gradient(135deg,var(--chs-green),var(--chs-sage)); display:grid; place-items:center; color:#fff; font-weight:800; font-size:14px; box-shadow:inset 0 0 0 2px rgba(255,255,255,.2);}
+  .title{ font-weight:800; letter-spacing:.3px; }
+  .controls{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  button,.btn{ -webkit-tap-highlight-color: transparent; border:none; border-radius:10px; padding:10px 14px; background:var(--chs-green); color:white; font-weight:700; cursor:pointer; box-shadow: var(--shadow);}
+  .btn.secondary{ background: #e6efe9; color: var(--ink); }
+  .btn.ghost{ background: transparent; color: var(--chs-green); box-shadow:none; }
+  .btn.ok{ background: var(--ok); }
+  .btn.small{ padding:8px 10px; font-size:13px; }
+  .grid{ display:grid; gap:14px; padding:16px; grid-template-columns: 320px 1fr 420px; grid-template-areas:"cal acts right"; }
+  @media (max-width: 1200px){ .grid{ grid-template-columns: 300px 1fr 380px; } }
+  @media (max-width: 900px){ .grid{ grid-template-columns: 1fr; grid-template-areas:"cal" "acts" "right"; } }
+  section{ background:rgba(0,0,0,0); border-radius:14px; }
+  .panel{ background:var(--chs-cream); border-radius:16px; padding:14px; box-shadow: var(--shadow); }
+  .calendar{ grid-area:cal; user-select:none; }
+  .activities-panel{ grid-area:acts; }
+  .right{ grid-area:right; display:flex; flex-direction:column; gap:14px; }
+  .cal-header{ display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:6px; }
+  .cal-grid{ display:grid; grid-template-columns: repeat(7,1fr); gap:6px; }
+  .dow{ text-align:center; font-size:11px; color:var(--muted); }
+  .day{ aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; border-radius:10px; cursor:pointer; background:#fff; color:var(--ink); font-weight:700; border:1px solid rgba(0,0,0,.06); font-size:13px; position:relative; }
+  [data-theme="dark"] .day{ background:#0d1310; border-color:#1c2621; }
+  .day.muted{ color:var(--muted); opacity:.6; }
+  .day.today{ outline:2px solid var(--chs-green); outline-offset:2px; }
+  .day.selected{ background: linear-gradient(180deg, var(--chs-sky), #fff); }
+  .dot-ind{ position:absolute; bottom:6px; width:4px; height:4px; border-radius:999px; background:var(--chs-gold);}
+  .badge{ font-size:11px; padding:4px 8px; background:var(--chip); border-radius:999px; }
+  .season-chip{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; font-weight:700; font-size:12px; background:var(--chip); }
+  .legend{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .dot{ width:10px; height:10px; border-radius:999px; background:var(--chs-green); display:inline-block; }
+  .dot.gray{ background:#999; }
+  .dot.gold{ background:var(--chs-gold); }
+  .stack{ display:flex; flex-direction:column; gap:10px; }
+  .activities{ display:flex; flex-direction:column; gap:10px; max-height: 62vh; overflow:auto; padding-right:4px; }
+  .activity{ background:#fff; border-radius:14px; padding:10px; border:1px solid rgba(0,0,0,.06); display:flex; gap:10px; align-items:center; justify-content:space-between; }
+  [data-theme="dark"] .activity{ background:#0d1310; border-color:#1c2621; }
+  .activity h4{ margin:0; font-size:15px; }
+  .activity .meta{ color:var(--muted); font-size:12px; }
+  .activity.disabled{ opacity:.45; filter:grayscale(.2); pointer-events:none; }
+  .filters{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .chip-btn{ border:1px solid rgba(0,0,0,.08); background:#fff; color:var(--ink); }
+  .email-preview{ background:#fff; border-radius:16px; padding:14px; border:1px solid rgba(0,0,0,.06); min-height:240px; }
+  textarea.plain{ width:100%; min-height:260px; border:none; outline:none; resize:vertical; font: inherit; background:transparent; color:var(--ink); }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  input[type="text"]{ border:1px solid rgba(0,0,0,.12); padding:10px 12px; border-radius:10px; font:inherit; background:#fff; color:var(--ink); }
+  .toast{ position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:10px 14px; border-radius:999px; display:none; box-shadow: var(--shadow); font-weight:800; }
+  .toast.show{ display:block; animation: pop .2s ease-out; }
+  @keyframes pop{ from{ transform: translateX(-50%) scale(.95); opacity:.7; } to{ transform: translateX(-50%) scale(1); opacity:1; } }
+  .subtle{ color:var(--muted); }
+  .pill{ padding:6px 10px; border-radius:999px; background:var(--chip); font-weight:700; }
+  .divider{ height:1px; background:rgba(0,0,0,.08); margin:8px 0; }
+  .season-theme{ height:6px; border-radius:6px; background:linear-gradient(90deg, var(--chs-green), var(--chs-gold), var(--chs-sage)); opacity:.9; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">CHS</div>
+    <div>
+      <div class="title">Itinerary Builder — Prototype v3</div>
+      <div class="subtle" id="headerSeason">Season: —</div>
+    </div>
+  </div>
+  <div class="controls">
+    <button class="btn secondary small" id="jumpToday">Today</button>
+    <button class="btn secondary small" id="toggleTheme">Dark Mode</button>
+  </div>
+</header>
+
+<div class="grid">
+  <!-- Calendar -->
+  <section class="panel calendar" id="calendarPanel">
+    <div class="cal-header">
+      <div class="when">
+        <span id="monthLabel"></span>
+        <span id="yearLabel" class="subtle"></span>
+      </div>
+      <div class="row">
+        <button class="btn secondary small" id="prevMonth">‹</button>
+        <button class="btn secondary small" id="nextMonth">›</button>
+      </div>
+    </div>
+    <div class="legend" style="margin-bottom:6px">
+      <span class="season-chip"> <span class="dot gold"></span> <span id="seasonLabel">—</span></span>
+      <span class="key"><span class="dot"></span> Available</span>
+      <span class="key"><span class="dot gray"></span> Conflict/Full</span>
+    </div>
+    <div class="season-theme"></div>
+    <div class="cal-grid" id="dowRow"></div>
+    <div class="cal-grid" id="daysGrid"></div>
+    <div class="row" style="justify-content:space-between; margin-top:8px;">
+      <div class="row">
+        <button class="btn ghost small" id="setArrival">Set Arrival</button>
+        <button class="btn ghost small" id="setDeparture">Set Departure</button>
+      </div>
+      <span class="pill" id="stayRangePill">Stay: —</span>
+    </div>
+  </section>
+
+  <!-- Activities -->
+  <section class="panel activities-panel">
+    <div class="row" style="justify-content:space-between; align-items:center;">
+      <div class="row">
+        <div class="badge" id="selectedDateBadge">Pick a date</div>
+        <div class="badge" id="weekdayBadge"></div>
+      </div>
+      <div class="row">
+        <button class="btn secondary small" id="clearDay">Clear Day</button>
+        <button class="btn secondary small" id="clearAll">Clear All</button>
+      </div>
+    </div>
+    <div class="filters" style="margin-top:8px">
+      <span class="subtle">Quick Filter:</span>
+      <button class="btn chip-btn small" data-filter="all">All</button>
+      <button class="btn chip-btn small" data-filter="hike">Hikes</button>
+      <button class="btn chip-btn small" data-filter="wellness">Wellness</button>
+      <button class="btn chip-btn small" data-filter="tasting">Tastings</button>
+      <button class="btn chip-btn small" data-filter="adventure">Adventures</button>
+      <button class="btn chip-btn small" data-filter="skills">Skills</button>
+    </div>
+    <div class="activities" id="activitiesList" style="margin-top:10px"></div>
+  </section>
+
+  <!-- Right: Email -->
+  <section class="right">
+    <section class="panel">
+      <div class="row">
+        <input type="text" id="guestName" placeholder="Guest name (optional for greeting)" />
+        <input type="text" id="emailSubject" placeholder="Email Subject" style="min-width:260px;" />
+      </div>
+      <div class="divider"></div>
+      <div class="email-preview">
+        <textarea id="emailBody" class="plain" placeholder="Live email preview..."></textarea>
+      </div>
+      <div class="row" style="justify-content:space-between; margin-top:8px;">
+        <div class="subtle" id="charCount">0 chars</div>
+        <div class="row">
+          <button class="btn ok" id="copyEmail">Copy Email</button>
+        </div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="row" style="justify-content:space-between; align-items:center;">
+        <div><strong>Your Selections</strong></div>
+        <div class="subtle" id="selectionCount">0 items</div>
+      </div>
+      <div id="selectionList" class="stack" style="margin-top:8px; max-height: 30vh; overflow:auto;"></div>
+    </section>
+  </section>
+</div>
+
+<div class="toast" id="toast">Copied!</div>
+
+<script>
+// ---------- Embedded Dataset (full seasons) ----------
+const DATASET = {"late-summer-2025": {"Monday": [{"title": "Overlook Hike", "start": "06:45", "end": "08:15", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Scenic Desert E-Bike Ride", "start": "07:00", "end": "09:15", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Castle Peak Via Ferrata Climb", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Crater Canyon Exploration", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "09:00", "end": "10:15", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "10:00", "end": "10:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Farm Tour", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Axe Throwing", "start": "11:00", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Rock Mandalas", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Cooling Aroma Restorative Yoga", "start": "14:00", "end": "15:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Wine Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Yoga Nidra", "start": "16:30", "end": "17:00", "loc": "Stone House", "price": "-", "tag": "wellness"}], "Tuesday": [{"title": "Canyon Walk", "start": "07:00", "end": "08:15", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Scenic Desert E-Bike Ride", "start": "07:00", "end": "09:15", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Castle Peak Via Ferrata Climb", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Sonoran Aerial Walkway", "start": "07:30", "end": "09:00", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "10:00", "end": "10:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Healing Waters Qigong", "start": "10:30", "end": "11:15", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "Farm Tour", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Cholla Suncatchers", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Agave Spirits Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}], "Wednesday": [{"title": "Discovery Loop Hike", "start": "06:45", "end": "08:15", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Scenic Desert E-Bike Ride", "start": "07:00", "end": "09:15", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Castle Peak Via Ferrata Climb", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Crater Canyon Exploration", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "09:00", "end": "10:15", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "10:00", "end": "10:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Farm Tour", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Axe Throwing", "start": "11:00", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Body Scrubs", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Core Yoga", "start": "14:00", "end": "15:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Intro to Mantra", "start": "16:30", "end": "17:00", "loc": "Stone House", "price": "-", "tag": "skills"}], "Thursday": [{"title": "Canyon Walk", "start": "07:00", "end": "08:15", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Scenic Desert E-Bike Ride", "start": "07:00", "end": "09:15", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Castle Peak Via Ferrata Climb", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Sonoran Aerial Walkway", "start": "07:30", "end": "09:00", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "10:00", "end": "10:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Healing Waters Qigong", "start": "10:30", "end": "11:15", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "Farm Tour", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Rock Mandalas", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Cooling Aroma Restorative Yoga", "start": "14:00", "end": "15:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Agave Spirits Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga Nidra", "start": "15:15", "end": "15:45", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}], "Friday": [{"title": "Overlook Hike", "start": "06:45", "end": "08:15", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Scenic Desert E-Bike Ride", "start": "07:00", "end": "09:15", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Castle Peak Via Ferrata Climb", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Crater Canyon Exploration", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "09:00", "end": "10:15", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "10:00", "end": "10:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Farm Tour", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Axe Throwing", "start": "11:00", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Cactus Candles", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Core Yoga", "start": "14:00", "end": "15:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Intro to Mantra", "start": "16:30", "end": "17:00", "loc": "Stone House", "price": "-", "tag": "skills"}], "Saturday": [{"title": "Discovery Loop Hike", "start": "06:45", "end": "08:15", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Scenic Desert E-Bike Ride", "start": "07:00", "end": "09:15", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Castle Peak Via Ferrata Climb", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Crater Canyon Exploration", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "10:00", "end": "10:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Axe Throwing", "start": "11:00", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Body Scrubs", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Cooling Aroma Restorative Yoga", "start": "14:00", "end": "15:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Wine Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga Nidra", "start": "15:15", "end": "15:45", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Sunday": [{"title": "Canyon Walk", "start": "07:00", "end": "08:15", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Scenic Desert E-Bike Ride", "start": "07:00", "end": "09:15", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Castle Peak Via Ferrata Climb", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Sonoran Aerial Walkway", "start": "07:30", "end": "09:00", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "10:00", "end": "10:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Healing Waters Qigong", "start": "10:30", "end": "11:15", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Sunprint Postcards", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}]}, "fall-2025": {"Monday": [{"title": "Castle Peak Via Ferrata Climb", "start": "08:00", "end": "11:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "08:15", "end": "10:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Overlook Hike", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "11:30", "end": "12:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "11:30", "end": "12:45", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Axe Throwing", "start": "12:30", "end": "13:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Crater Canyon Exploration", "start": "13:00", "end": "16:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Healing Waters Qigong", "start": "14:00", "end": "14:45", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Rock Mandalas", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Wine Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Tuesday": [{"title": "Castle Peak Via Ferrata Climb", "start": "08:00", "end": "11:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "08:15", "end": "10:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Canyon Walk", "start": "10:30", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "11:30", "end": "12:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Cholla Suncatchers", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Agave Spirits Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Sonoran Aerial Walkway", "start": "15:30", "end": "17:00", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Wednesday": [{"title": "Castle Peak Via Ferrata Climb", "start": "08:00", "end": "11:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "08:15", "end": "10:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Discovery Loop Hike", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "11:30", "end": "12:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "11:30", "end": "12:45", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Axe Throwing", "start": "12:30", "end": "13:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Crater Canyon Exploration", "start": "13:00", "end": "16:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Healing Waters Qigong", "start": "14:00", "end": "14:45", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Body Scrubs", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Thursday": [{"title": "Castle Peak Via Ferrata Climb", "start": "08:00", "end": "11:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "08:15", "end": "10:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Canyon Walk", "start": "10:30", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "11:30", "end": "12:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Rock Mandalas", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Agave Spirits Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Sonoran Aerial Walkway", "start": "15:30", "end": "17:00", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Friday": [{"title": "Castle Peak Via Ferrata Climb", "start": "08:00", "end": "11:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "08:15", "end": "10:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Overlook Hike", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "11:30", "end": "12:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "11:30", "end": "12:45", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Axe Throwing", "start": "12:30", "end": "13:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Crater Canyon Exploration", "start": "13:00", "end": "16:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Healing Waters Qigong", "start": "14:00", "end": "14:45", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Cactus Candles", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Saturday": [{"title": "Castle Peak Via Ferrata Climb", "start": "08:00", "end": "11:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "08:15", "end": "10:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Discovery Loop Hike", "start": "10:30", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "11:30", "end": "12:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Axe Throwing", "start": "12:30", "end": "13:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Crater Canyon Exploration", "start": "13:00", "end": "16:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Mindfulness Activity - Body Scrubs", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Wine Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Sonoran Aerial Walkway", "start": "15:30", "end": "17:00", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Sunday": [{"title": "Castle Peak Via Ferrata Climb", "start": "08:00", "end": "11:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "08:15", "end": "10:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Canyon Walk", "start": "10:30", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "11:30", "end": "12:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Sunprint Postcards", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Sonoran Aerial Walkway", "start": "15:30", "end": "17:00", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}]}, "winter-2025-26": {"Monday": [{"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Peak Via Ferrata Climb", "start": "09:00", "end": "12:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "09:15", "end": "11:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Overlook Hike", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "12:00", "end": "12:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "12:30", "end": "13:45", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Axe Throwing", "start": "13:00", "end": "13:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Crater Canyon Exploration", "start": "13:00", "end": "16:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Healing Waters Qigong", "start": "14:00", "end": "14:45", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Rock Mandalas", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Wine Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Tuesday": [{"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Peak Via Ferrata Climb", "start": "09:00", "end": "12:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "09:15", "end": "11:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Canyon Walk", "start": "10:30", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "12:00", "end": "12:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Cholla Suncatchers", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Agave Spirits Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Sonoran Aerial Walkway", "start": "15:00", "end": "16:30", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Wednesday": [{"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Peak Via Ferrata Climb", "start": "09:00", "end": "12:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "09:15", "end": "11:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Discovery Loop Hike", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "12:00", "end": "12:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "12:30", "end": "13:45", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Axe Throwing", "start": "13:00", "end": "13:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Crater Canyon Exploration", "start": "13:00", "end": "16:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Healing Waters Qigong", "start": "14:00", "end": "14:45", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Body Scrubs", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Thursday": [{"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Peak Via Ferrata Climb", "start": "09:00", "end": "12:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "09:15", "end": "11:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Canyon Walk", "start": "10:30", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "12:00", "end": "12:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Rock Mandalas", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Agave Spirits Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Sonoran Aerial Walkway", "start": "15:00", "end": "16:30", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Friday": [{"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Peak Via Ferrata Climb", "start": "09:00", "end": "12:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "09:15", "end": "11:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Overlook Hike", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "12:00", "end": "12:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "12:30", "end": "13:45", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Axe Throwing", "start": "13:00", "end": "13:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Crater Canyon Exploration", "start": "13:00", "end": "16:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Healing Waters Qigong", "start": "14:00", "end": "14:45", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Cactus Candles", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Saturday": [{"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Peak Via Ferrata Climb", "start": "09:00", "end": "12:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "09:15", "end": "11:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Discovery Loop Hike", "start": "10:30", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "12:00", "end": "12:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Axe Throwing", "start": "13:00", "end": "13:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Crater Canyon Exploration", "start": "13:00", "end": "16:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Mindfulness Activity - Body Scrubs", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Wine Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Sonoran Aerial Walkway", "start": "15:00", "end": "16:30", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Sunday": [{"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Peak Via Ferrata Climb", "start": "09:00", "end": "12:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "09:15", "end": "11:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Canyon Walk", "start": "10:30", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "12:00", "end": "12:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Sunprint Postcards", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Sonoran Aerial Walkway", "start": "15:00", "end": "16:30", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}]}, "spring-2026": {"Monday": [{"title": "Castle Peak Via Ferrata Climb", "start": "08:00", "end": "11:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "08:15", "end": "10:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Overlook Hike", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "11:30", "end": "12:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "11:30", "end": "12:45", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Axe Throwing", "start": "12:30", "end": "13:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Crater Canyon Exploration", "start": "13:00", "end": "16:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Healing Waters Qigong", "start": "14:00", "end": "14:45", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Rock Mandalas", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Wine Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Tuesday": [{"title": "Castle Peak Via Ferrata Climb", "start": "08:00", "end": "11:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "08:15", "end": "10:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Canyon Walk", "start": "10:30", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "11:30", "end": "12:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Cholla Suncatchers", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Agave Spirits Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Sonoran Aerial Walkway", "start": "15:30", "end": "17:00", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Wednesday": [{"title": "Castle Peak Via Ferrata Climb", "start": "08:00", "end": "11:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "08:15", "end": "10:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Discovery Loop Hike", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "11:30", "end": "12:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "11:30", "end": "12:45", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Axe Throwing", "start": "12:30", "end": "13:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Crater Canyon Exploration", "start": "13:00", "end": "16:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Healing Waters Qigong", "start": "14:00", "end": "14:45", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Body Scrubs", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Thursday": [{"title": "Castle Peak Via Ferrata Climb", "start": "08:00", "end": "11:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "08:15", "end": "10:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Canyon Walk", "start": "10:30", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "11:30", "end": "12:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Rock Mandalas", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Agave Spirits Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Sonoran Aerial Walkway", "start": "15:30", "end": "17:00", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Friday": [{"title": "Castle Peak Via Ferrata Climb", "start": "08:00", "end": "11:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "08:15", "end": "10:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Overlook Hike", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "11:30", "end": "12:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "11:30", "end": "12:45", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Axe Throwing", "start": "12:30", "end": "13:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Crater Canyon Exploration", "start": "13:00", "end": "16:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Healing Waters Qigong", "start": "14:00", "end": "14:45", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Cactus Candles", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Saturday": [{"title": "Castle Peak Via Ferrata Climb", "start": "08:00", "end": "11:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "08:15", "end": "10:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Discovery Loop Hike", "start": "10:30", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "11:30", "end": "12:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Axe Throwing", "start": "12:30", "end": "13:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Crater Canyon Exploration", "start": "13:00", "end": "16:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Mindfulness Activity - Body Scrubs", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Wine Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Sonoran Aerial Walkway", "start": "15:30", "end": "17:00", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Sunday": [{"title": "Castle Peak Via Ferrata Climb", "start": "08:00", "end": "11:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Scenic Desert E-Bike Ride", "start": "08:15", "end": "10:30", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Canyon Walk", "start": "10:30", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Guided Archery", "start": "11:30", "end": "12:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Sunprint Postcards", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Sonoran Aerial Walkway", "start": "15:30", "end": "17:00", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}]}, "spring-summer-2026": {"Monday": [{"title": "Overlook Hike", "start": "06:45", "end": "08:15", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Scenic Desert E-Bike Ride", "start": "07:00", "end": "09:15", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Castle Peak Via Ferrata Climb", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Crater Canyon Exploration", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "09:00", "end": "10:15", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "10:00", "end": "10:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Farm Tour", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Axe Throwing", "start": "11:00", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Rock Mandalas", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Wine Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Tuesday": [{"title": "Canyon Walk", "start": "07:00", "end": "08:15", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Scenic Desert E-Bike Ride", "start": "07:00", "end": "09:15", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Castle Peak Via Ferrata Climb", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Sonoran Aerial Walkway", "start": "07:30", "end": "09:00", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "10:00", "end": "10:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Healing Waters Qigong", "start": "10:30", "end": "11:15", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "Farm Tour", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Cholla Suncatchers", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Agave Spirits Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}], "Wednesday": [{"title": "Discovery Loop Hike", "start": "06:45", "end": "08:15", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Scenic Desert E-Bike Ride", "start": "07:00", "end": "09:15", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Castle Peak Via Ferrata Climb", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Crater Canyon Exploration", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "09:00", "end": "10:15", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "10:00", "end": "10:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Farm Tour", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Axe Throwing", "start": "11:00", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Body Scrubs", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Thursday": [{"title": "Canyon Walk", "start": "07:00", "end": "08:15", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Scenic Desert E-Bike Ride", "start": "07:00", "end": "09:15", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Castle Peak Via Ferrata Climb", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Sonoran Aerial Walkway", "start": "07:30", "end": "09:00", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "10:00", "end": "10:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Healing Waters Qigong", "start": "10:30", "end": "11:15", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "Farm Tour", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Rock Mandalas", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Agave Spirits Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}], "Friday": [{"title": "Overlook Hike", "start": "06:45", "end": "08:15", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Scenic Desert E-Bike Ride", "start": "07:00", "end": "09:15", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Castle Peak Via Ferrata Climb", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Crater Canyon Exploration", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Rise & Shine Flow Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "E-Biking 101: Intro to E-Bike Tour", "start": "09:00", "end": "10:15", "loc": "Lodge", "price": "$100/pp", "tag": "adventure"}, {"title": "Landscape Restoration and Development Tour", "start": "09:30", "end": "10:15", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "10:00", "end": "10:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Intro to Tai Chi", "start": "10:15", "end": "11:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Farm Tour", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Axe Throwing", "start": "11:00", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "Sound Bath", "start": "12:30", "end": "13:30", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Cactus Candles", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Yoga", "start": "15:15", "end": "16:10", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}], "Saturday": [{"title": "Discovery Loop Hike", "start": "06:45", "end": "08:15", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Scenic Desert E-Bike Ride", "start": "07:00", "end": "09:15", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Castle Peak Via Ferrata Climb", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Crater Canyon Exploration", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "10:00", "end": "10:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Farm Tour", "start": "10:30", "end": "11:30", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Axe Throwing", "start": "11:00", "end": "11:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Paddle Board Yoga", "start": "11:00", "end": "12:00", "loc": "Lower Springs", "price": "-", "tag": "wellness"}, {"title": "Mindfulness Activity - Body Scrubs", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Wine Tasting", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Connecting With Water", "start": "16:00", "end": "17:00", "loc": "Lodge", "price": "-", "tag": "skills"}], "Sunday": [{"title": "Canyon Walk", "start": "07:00", "end": "08:15", "loc": "Lodge", "price": "-", "tag": "hike"}, {"title": "Scenic Desert E-Bike Ride", "start": "07:00", "end": "09:15", "loc": "Lodge", "price": "$200/pp", "tag": "adventure"}, {"title": "Castle Peak Via Ferrata Climb", "start": "07:00", "end": "10:00", "loc": "Lodge", "price": "$300/pp", "tag": "adventure"}, {"title": "Sonoran Aerial Walkway", "start": "07:30", "end": "09:00", "loc": "Lodge", "price": "$100/pp", "tag": "hike"}, {"title": "Yoga", "start": "08:30", "end": "09:25", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Meditation", "start": "09:40", "end": "10:00", "loc": "Stone House", "price": "-", "tag": "wellness"}, {"title": "Guided Archery", "start": "10:00", "end": "10:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Healing Waters Qigong", "start": "10:30", "end": "11:15", "loc": "Watsu Pond", "price": "-", "tag": "wellness"}, {"title": "History Tour", "start": "14:00", "end": "14:45", "loc": "Lodge", "price": "-", "tag": "skills"}, {"title": "Mindfulness Activity - Sunprint Postcards", "start": "14:00", "end": "14:45", "loc": "Stone House", "price": "-", "tag": "skills"}, {"title": "Farm to Bar: Mixology 101", "start": "15:00", "end": "16:00", "loc": "Murphy Hall", "price": "$75/pp", "tag": "tasting"}, {"title": "Castle Hot Springs Documentary Viewing", "start": "16:00", "end": "16:45", "loc": "Stone House", "price": "-", "tag": "skills"}]}};
+
+// ---------- Utilities ----------
+const fmt = new Intl.DateTimeFormat(undefined, { month: 'long', day:'numeric', year:'numeric' });
+const fmtShort = new Intl.DateTimeFormat(undefined, { month:'short', day:'numeric' });
+const weekFmt = new Intl.DateTimeFormat(undefined, { weekday:'long' });
+
+function ymd(d){ return d.toISOString().slice(0,10); }
+function sameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+
+// ---------- Seasons ----------
+const SEASONS = [
+  { key: 'late-summer-2025', label:'Late Summer',  start:'2025-08-28', end:'2025-10-15', theme:'#7e9c87' },
+  { key: 'fall-2025', label:'Fall',                 start:'2025-10-16', end:'2025-11-19', theme:'#a87d35' },
+  { key: 'winter-2025-26', label:'Winter',          start:'2025-11-20', end:'2026-03-04', theme:'#2e6e55' },
+  { key: 'spring-2026', label:'Spring',             start:'2026-03-05', end:'2026-04-22', theme:'#7e9c87' },
+  { key: 'spring-summer-2026', label:'Spring–Summer', start:'2026-04-23', end:'2026-07-05', theme:'#c9ded6' },
+];
+function seasonFor(date){ const iso=ymd(date); for (const s of SEASONS){ if (iso>=s.start && iso<=s.end) return s; } return null; }
+
+// ---------- State ----------
+let state = {
+  today: new Date(),
+  viewMonth: null,
+  selectedDate: null,
+  arrival: null,
+  departure: null,
+  selections: {}, // 'YYYY-MM-DD': [acts]
+  filter: 'all',
+  theme: 'light',
+};
+
+// ---------- Calendar DOM ----------
+const monthLabel = document.getElementById('monthLabel');
+const yearLabel = document.getElementById('yearLabel');
+const dowRow = document.getElementById('dowRow');
+const daysGrid = document.getElementById('daysGrid');
+const seasonLabel = document.getElementById('seasonLabel');
+const headerSeason = document.getElementById('headerSeason');
+const stayRangePill = document.getElementById('stayRangePill');
+
+const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function renderDOW(){
+  dowRow.innerHTML='';
+  for (const d of DOW){
+    const el = document.createElement('div');
+    el.className='dow';
+    el.textContent=d;
+    dowRow.appendChild(el);
+  }
+}
+function firstOfMonth(date){ return new Date(date.getFullYear(), date.getMonth(), 1); }
+
+function renderCalendar(){
+  const vm = state.viewMonth;
+  const first = firstOfMonth(vm);
+  const month = first.getMonth(), year = first.getFullYear();
+  monthLabel.textContent = first.toLocaleString(undefined,{month:'long'});
+  yearLabel.textContent = year;
+
+  const s = seasonFor(state.selectedDate || vm);
+  const sLabel = s ? s.label : 'Out of Season';
+  seasonLabel.textContent = sLabel;
+  headerSeason.textContent = 'Season: ' + sLabel;
+
+  daysGrid.innerHTML='';
+  const offset = first.getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const prevDays = new Date(year, month, 0).getDate();
+  for (let i=0;i<offset;i++){ const dayNum=prevDays-(offset-1)+i; daysGrid.appendChild(dayCell(new Date(year,month-1,dayNum),true)); }
+  for (let d=1; d<=daysInMonth; d++){ daysGrid.appendChild(dayCell(new Date(year,month,d),false)); }
+  const total = daysGrid.children.length;
+  for (let i=0; i<(42-total); i++){ daysGrid.appendChild(dayCell(new Date(year,month+1,i+1),true)); }
+  updateBadges();
+}
+function dayHasActivities(date){
+  const skey = (seasonFor(date)||{key:null}).key;
+  if (!skey) return false;
+  const week = DATASET[skey];
+  if (!week) return false;
+  const day = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][date.getDay()];
+  return (week[day] && week[day].length>0);
+}
+function dayCell(date, muted){
+  const el = document.createElement('div');
+  el.className = 'day' + (muted?' muted':'');
+  el.textContent = date.getDate();
+  if (sameDay(date, state.today)) el.classList.add('today');
+  if (state.selectedDate && sameDay(date, state.selectedDate)) el.classList.add('selected');
+  // tiny indicator if activities exist for that day
+  if (dayHasActivities(date)) {
+    const dot = document.createElement('div');
+    dot.className='dot-ind';
+    el.appendChild(dot);
+  }
+  el.addEventListener('click', ()=>{ state.selectedDate = date; renderCalendar(); renderActivities(); });
+  return el;
+}
+function updateBadges(){
+  const selectedDateBadge = document.getElementById('selectedDateBadge');
+  const weekdayBadge = document.getElementById('weekdayBadge');
+  if (state.selectedDate){
+    selectedDateBadge.textContent = fmt.format(state.selectedDate);
+    weekdayBadge.textContent = weekFmt.format(state.selectedDate);
+  } else {
+    selectedDateBadge.textContent = 'Pick a date';
+    weekdayBadge.textContent = '';
+  }
+  if (state.arrival && state.departure){
+    stayRangePill.textContent = `Stay: ${fmtShort.format(state.arrival)} – ${fmtShort.format(state.departure)}`;
+  } else if (state.arrival){
+    stayRangePill.textContent = `Arrival: ${fmtShort.format(state.arrival)}`;
+  } else if (state.departure){
+    stayRangePill.textContent = `Departure: ${fmtShort.format(state.departure)}`;
+  } else {
+    stayRangePill.textContent = 'Stay: —';
+  }
+}
+
+// ---------- Activities ----------
+const activitiesList = document.getElementById('activitiesList');
+function getScheduleFor(date){
+  const s = seasonFor(date);
+  if (!s) return [];
+  const week = DATASET[s.key] || {};
+  const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][date.getDay()];
+  return (week[dayName] || []);
+}
+function timeToMin(t){ const [hh,mm]=t.split(':').map(Number); return hh*60+mm; }
+function overlaps(a,b){ const aS=timeToMin(a.start), aE=timeToMin(a.end), bS=timeToMin(b.start), bE=timeToMin(b.end); return (a.start===b.start) || (aS<bE && bS<aE); }
+
+function renderActivities(){
+  activitiesList.innerHTML='';
+  if (!state.selectedDate){
+    const info = document.createElement('div'); info.className='subtle';
+    info.textContent='Select a date to see available activities for that season/day.'; activitiesList.appendChild(info); return;
+  }
+  const schedule = getScheduleFor(state.selectedDate);
+  const todaysSelections = (state.selections[ymd(state.selectedDate)] || []);
+  const filter = state.filter;
+  const filtered = schedule.filter(a => filter==='all' ? true : a.tag===filter);
+  if (filtered.length===0){
+    const empty = document.createElement('div'); empty.className='subtle'; empty.textContent='No activities for this filter.';
+    activitiesList.appendChild(empty); return;
+  }
+  for (const act of filtered){
+    const row = document.createElement('div'); row.className='activity';
+    const conflict = todaysSelections.some(s => overlaps(s, act));
+    if (conflict) row.classList.add('disabled');
+    row.innerHTML = `
+      <div>
+        <h4>${act.title}</h4>
+        <div class="meta">${act.start}–${act.end}${act.loc ? ' • '+act.loc : ''} • ${act.price} • <span class="badge">${act.tag}</span></div>
+      </div>
+      <div class="row">
+        ${conflict ? '<span class="subtle">Conflict</span>' : ''}
+        <button class="btn small">Add</button>
+      </div>`;
+    row.querySelector('button').addEventListener('click', ()=> addSelection(state.selectedDate, act));
+    activitiesList.appendChild(row);
+  }
+  renderSelections();
+  rebuildEmail();
+}
+
+// ---------- Selections & Email ----------
+const selectionList = document.getElementById('selectionList');
+const selectionCount = document.getElementById('selectionCount');
+const emailBody = document.getElementById('emailBody');
+const emailSubject = document.getElementById('emailSubject');
+const guestName = document.getElementById('guestName');
+const charCount = document.getElementById('charCount');
+
+function addSelection(date, act){
+  const k = ymd(date);
+  state.selections[k] = state.selections[k] || [];
+  if (!state.selections[k].some(s => s.title===act.title && s.start===act.start)){
+    state.selections[k].push({...act});
+    state.selections[k].sort((a,b)=> timeToMin(a.start)-timeToMin(b.start));
+  }
+  renderActivities(); renderSelections(); rebuildEmail();
+}
+function removeSelection(dateKey, idx){
+  if (!state.selections[dateKey]) return;
+  state.selections[dateKey].splice(idx,1);
+  if (state.selections[dateKey].length===0) delete state.selections[dateKey];
+  renderActivities(); renderSelections(); rebuildEmail();
+}
+function clearDay(){
+  if (!state.selectedDate) return;
+  delete state.selections[ymd(state.selectedDate)];
+  renderActivities(); renderSelections(); rebuildEmail();
+}
+function clearAll(){
+  state.selections = {}; renderActivities(); renderSelections(); rebuildEmail();
+}
+function renderSelections(){
+  selectionList.innerHTML='';
+  const keys = Object.keys(state.selections).sort();
+  let total=0;
+  for (const k of keys){
+    const date = new Date(k);
+    const header = document.createElement('div');
+    header.innerHTML = `<div class="row" style="justify-content:space-between; align-items:center">
+      <div><strong>${fmt.format(date)}</strong></div>
+      <button class="btn secondary small" data-k="${k}">Clear</button>
+    </div>`;
+    header.querySelector('button').addEventListener('click', ()=>{ delete state.selections[k]; renderActivities(); renderSelections(); rebuildEmail(); });
+    selectionList.appendChild(header);
+    for (const [i,act] of state.selections[k].entries()){ total++; const item = document.createElement('div'); item.className='activity';
+      item.innerHTML = `<div><div><strong>${act.title}</strong></div><div class="meta">${act.start}–${act.end}${act.loc ? ' • '+act.loc : ''} • ${act.price}</div></div><button class="btn small">Remove</button>`;
+      item.querySelector('button').addEventListener('click', ()=> removeSelection(k,i));
+      selectionList.appendChild(item);
+    }
+  }
+  selectionCount.textContent = total + ' item' + (total===1?'':'s');
+}
+function rebuildEmail(){
+  if (state.arrival && state.departure){
+    emailSubject.value = `Castle Hot Springs Itinerary | ${fmtShort.format(state.arrival)} – ${fmtShort.format(state.departure)}`;
+  }
+  const nameLine = guestName.value ? `Hi ${guestName.value},\n\n` : '';
+  const intro = `Thank you for your time today — here is your itinerary for review. We'll also have a printed copy upon arrival.\n\n`;
+  const arrLine = state.arrival ? `Arrival: Welcome to arrive as early as noon | 4:00pm Guaranteed Check-In (${fmt.format(state.arrival)})\n` : '';
+  const depLine = state.departure ? `Departure: 11:00am Checkout | Welcome to stay on property until 1:00pm (${fmt.format(state.departure)})\n` : '';
+  const keys = Object.keys(state.selections).sort();
+  let body='';
+  for (const k of keys){ const d=new Date(k); body += `${weekFmt.format(d)}, ${fmt.format(d)}\n`; for (const act of state.selections[k]){ body += `• ${act.start}–${act.end} | ${act.title}\n`; } body += `\n`; }
+  const outro = `If there’s anything you’d like to adjust, just let me know.\n\nWarmly,\nPre-Arrival Team\n855-789-1476`;
+  emailBody.value = nameLine + intro + arrLine + depLine + body + outro;
+  charCount.textContent = emailBody.value.length + ' chars';
+}
+
+// ---------- Copy & Toast ----------
+const toast = document.getElementById('toast');
+document.getElementById('copyEmail').addEventListener('click', async ()=>{
+  try{ await navigator.clipboard.writeText(emailBody.value); toast.textContent='Copied!'; toast.classList.add('show'); setTimeout(()=> toast.classList.remove('show'), 1800); }
+  catch(e){ toast.textContent='Copy failed'; toast.classList.add('show'); setTimeout(()=> toast.classList.remove('show'), 1800); }
+});
+
+// ---------- Filters ----------
+document.querySelectorAll('[data-filter]').forEach(btn=> btn.addEventListener('click', ()=>{ state.filter = btn.getAttribute('data-filter'); renderActivities(); }));
+
+// ---------- Theme ----------
+const toggleTheme = document.getElementById('toggleTheme');
+toggleTheme.addEventListener('click', ()=>{ state.theme = (state.theme==='light' ? 'dark' : 'light'); document.documentElement.setAttribute('data-theme', state.theme==='dark'?'dark':''); toggleTheme.textContent = state.theme==='dark' ? 'Light Mode' : 'Dark Mode'; });
+
+// ---------- Arrival/Departure ----------
+document.getElementById('setArrival').addEventListener('click', ()=>{ if (!state.selectedDate) return; state.arrival = state.selectedDate; if (state.departure && state.departure <= state.arrival) state.departure = addDays(state.arrival, 2); updateBadges(); rebuildEmail(); });
+document.getElementById('setDeparture').addEventListener('click', ()=>{ if (!state.selectedDate) return; state.departure = state.selectedDate; if (state.arrival && state.arrival >= state.departure) state.arrival = addDays(state.departure, -2); updateBadges(); rebuildEmail(); });
+
+// ---------- Jump Today & Month Nav ----------
+document.getElementById('jumpToday').addEventListener('click', ()=>{ state.viewMonth = firstOfMonth(state.today); state.selectedDate = new Date(state.today); renderCalendar(); renderActivities(); });
+document.getElementById('prevMonth').addEventListener('click', ()=>{ const m=state.viewMonth; state.viewMonth = new Date(m.getFullYear(), m.getMonth()-1, 1); renderCalendar(); renderActivities(); });
+document.getElementById('nextMonth').addEventListener('click', ()=>{ const m=state.viewMonth; state.viewMonth = new Date(m.getFullYear(), m.getMonth()+1, 1); renderCalendar(); renderActivities(); });
+
+// ---------- Init ----------
+function init(){
+  // If today is out of known seasons, default to first season start
+  const today = new Date();
+  const inSeason = seasonFor(today);
+  let initial = today;
+  if (!inSeason) initial = new Date('2025-08-28');
+  state.today = today;
+  state.viewMonth = firstOfMonth(initial);
+  renderDOW();
+  renderCalendar();
+  state.selectedDate = new Date(initial);
+  renderCalendar(); renderActivities(); rebuildEmail();
+}
+init();
+</script>
+</body>
+</html>
